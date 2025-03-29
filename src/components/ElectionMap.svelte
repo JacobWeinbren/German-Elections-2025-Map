@@ -15,6 +15,7 @@
 	let allDistrictData = [];
 	let dataLoaded = false;
 	let hoverInfo = null;
+	let isMobile = false;
 
 	// Party colors (standard German party colours)
 	const partyColors = {
@@ -28,8 +29,17 @@
 		OTHER: "#BBBBBB", // Gray
 	};
 
+	// Check if device is mobile
+	function checkMobile() {
+		isMobile = window.innerWidth < 768;
+	}
+
 	// Set up the map on component mount
 	onMount(async () => {
+		// Check for mobile device
+		checkMobile();
+		window.addEventListener("resize", checkMobile);
+
 		// Initialize map
 		mapboxgl.accessToken = MAPBOX_TOKEN;
 		map = new mapboxgl.Map({
@@ -41,8 +51,8 @@
 			maxZoom: 10,
 		});
 
-		// Add navigation controls
-		map.addControl(new mapboxgl.NavigationControl(), "top-right");
+		// Add navigation controls (moved to bottom-right for mobile compatibility)
+		map.addControl(new mapboxgl.NavigationControl(), "bottom-right");
 
 		// Add geocoder for searching locations
 		const geocoder = new MapboxGeocoder({
@@ -79,6 +89,10 @@
 			// Set up event listeners
 			setupEventListeners();
 		});
+
+		return () => {
+			window.removeEventListener("resize", checkMobile);
+		};
 	});
 
 	// Fetch data to calculate statistics
@@ -510,9 +524,16 @@
 		);
 	}
 
+	// Toggle the party selection dropdown on mobile
+	let showPartyMenu = false;
+	function togglePartyMenu() {
+		showPartyMenu = !showPartyMenu;
+	}
+
 	// Handle view change
 	function handleViewChange(newValue) {
 		selectedView = newValue;
+		showPartyMenu = false; // Close menu after selection on mobile
 
 		const layers = map.getStyle().layers;
 		const labelLayerId = layers.find(
@@ -528,11 +549,82 @@
 </script>
 
 <div id="map" class="absolute inset-0 w-full h-full"></div>
-<div id="geocoder" class="absolute top-4 left-4 z-10 max-w-[200px]"></div>
 
-<!-- Party selection controls -->
+<!-- Geocoder (smaller on mobile) -->
 <div
-	class="absolute left-4 top-20 z-10 bg-white rounded-md shadow-md p-3 max-w-[200px]"
+	id="geocoder"
+	class="absolute top-4 left-4 z-10 max-w-[250px] md:max-w-[300px]"
+></div>
+
+<!-- Party selection - Mobile: dropdown button that expands -->
+<div class="md:hidden absolute left-4 top-20 z-20">
+	<button
+		class="bg-white rounded-md shadow-md px-3 py-2 flex items-center gap-2 text-sm font-medium"
+		on:click={togglePartyMenu}
+	>
+		{selectedView === "leading"
+			? "Leading Party"
+			: selectedView === "UNION"
+				? "CDU/CSU"
+				: selectedView === "GRÜNE"
+					? "Grüne"
+					: selectedView === "LINKE"
+						? "Linke"
+						: selectedView}
+		<svg
+			xmlns="http://www.w3.org/2000/svg"
+			width="16"
+			height="16"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="2"
+			stroke-linecap="round"
+			stroke-linejoin="round"
+		>
+			<path d={showPartyMenu ? "M18 15l-6-6-6 6" : "M6 9l6 6 6-6"}></path>
+		</svg>
+	</button>
+
+	{#if showPartyMenu}
+		<div
+			class="absolute left-0 top-12 bg-white rounded-md shadow-md p-2 w-40 mt-1 z-30"
+		>
+			<div class="space-y-1">
+				<button
+					class="block w-full text-left py-1.5 px-2 rounded text-sm {selectedView ===
+					'leading'
+						? 'bg-gray-200 font-medium'
+						: 'hover:bg-gray-100'}"
+					on:click={() => handleViewChange("leading")}
+				>
+					Leading Party
+				</button>
+				{#each ["SPD", "UNION", "GRÜNE", "FDP", "AfD", "LINKE", "BSW", "OTHER"] as party}
+					<button
+						class="block w-full text-left py-1.5 px-2 rounded text-sm {selectedView ===
+						party
+							? 'bg-gray-200 font-medium'
+							: 'hover:bg-gray-100'}"
+						on:click={() => handleViewChange(party)}
+					>
+						{party === "UNION"
+							? "CDU/CSU"
+							: party === "GRÜNE"
+								? "Grüne"
+								: party === "LINKE"
+									? "Linke"
+									: party}
+					</button>
+				{/each}
+			</div>
+		</div>
+	{/if}
+</div>
+
+<!-- Party selection controls - Desktop: sidebar -->
+<div
+	class="hidden md:block absolute left-4 top-20 z-10 bg-white rounded-md shadow-md p-3 max-w-[200px]"
 >
 	<div class="text-sm font-bold mb-2">German Election Results</div>
 	<div class="space-y-1.5 text-xs">
@@ -565,9 +657,11 @@
 	</div>
 </div>
 
-<!-- Legend for selected view -->
+<!-- Legend for selected view - Positioned at bottom for mobile, top-right for desktop -->
 {#if selectedView !== "leading" && dataLoaded}
-	<div class="absolute top-4 right-4 z-10 bg-white rounded-md shadow-md p-3">
+	<div
+		class="absolute bottom-16 left-0 right-0 mx-auto md:bottom-auto md:top-4 md:right-4 md:left-auto z-10 bg-white rounded-md shadow-md p-3 max-w-[260px]"
+	>
 		<div class="text-base font-bold">
 			{selectedView === "UNION"
 				? "CDU/CSU"
@@ -638,7 +732,9 @@
 		{/if}
 	</div>
 {:else if selectedView === "leading"}
-	<div class="absolute top-4 right-4 z-10 bg-white rounded-md shadow-md p-3">
+	<div
+		class="absolute bottom-16 left-0 right-0 mx-auto md:bottom-auto md:top-4 md:right-4 md:left-auto z-10 bg-white rounded-md shadow-md p-3 max-w-[260px]"
+	>
 		<div class="text-base font-bold mb-2">Leading Party</div>
 		<div class="grid grid-cols-2 gap-x-2 gap-y-2">
 			{#each Object.entries(partyColors) as [party, color]}
@@ -662,11 +758,14 @@
 	</div>
 {/if}
 
-<!-- Hover info -->
+<!-- Hover info - adjusted for better mobile display -->
 {#if hoverInfo && selectedView !== "leading"}
 	<div
-		class="pointer-events-none absolute z-20 bg-white p-2 rounded-md shadow-md text-sm"
-		style="top: {hoverInfo.y + 10}px; left: {hoverInfo.x + 10}px;"
+		class="pointer-events-none absolute z-20 bg-white p-2 rounded-md shadow-md text-sm max-w-[200px]"
+		style="top: {Math.min(
+			hoverInfo.y + 10,
+			window.innerHeight - 80
+		)}px; left: {Math.min(hoverInfo.x + 10, window.innerWidth - 220)}px;"
 	>
 		<div class="font-medium">
 			{selectedView === "UNION"
@@ -680,9 +779,11 @@
 	</div>
 {:else if hoverInfo && selectedView === "leading"}
 	<div
-		class="pointer-events-none absolute z-20 bg-white p-3 rounded-md shadow-md text-sm"
-		style="top: {hoverInfo.y + 10}px; left: {hoverInfo.x +
-			10}px; min-width: 180px;"
+		class="pointer-events-none absolute z-20 bg-white p-3 rounded-md shadow-md text-sm max-w-[200px]"
+		style="top: {Math.min(
+			hoverInfo.y + 10,
+			window.innerHeight - 200
+		)}px; left: {Math.min(hoverInfo.x + 10, window.innerWidth - 220)}px;"
 	>
 		<div class="space-y-1.5">
 			{#each Object.entries( { AfD: hoverInfo.AfD, UNION: hoverInfo.UNION, LINKE: hoverInfo.LINKE, SPD: hoverInfo.SPD, BSW: hoverInfo.BSW, GRÜNE: hoverInfo.GRÜNE, OTHER: hoverInfo.OTHER, FDP: hoverInfo.FDP } ).sort((a, b) => b[1] - a[1]) as [party, value]}
@@ -708,20 +809,3 @@
 		</div>
 	</div>
 {/if}
-
-<style>
-	/* CSS for hiding MapboxGL attribution until hover (cleaner UI) */
-	.mapboxgl-ctrl-attrib {
-		opacity: 0.3;
-		transition: opacity 0.2s;
-	}
-
-	.mapboxgl-ctrl-attrib:hover {
-		opacity: 1;
-	}
-
-	/* Map layer ordering */
-	.mapboxgl-canvas {
-		z-index: 0;
-	}
-</style>
