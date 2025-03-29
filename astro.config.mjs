@@ -9,4 +9,5 @@ export default defineConfig({
 		plugins: [tailwindcss()],
 	},
 	integrations: [svelte()],
+	base: "German-Elections-2025-Map",
 });
