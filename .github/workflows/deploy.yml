@@ -1,35 +1,37 @@
-name: Build and Deploy
+name: Deploy to GitHub Pages
+
 on:
     push:
-        branches:
-            - main
+        branches: [main]
     workflow_dispatch:
 
 permissions:
-    contents: write
+    contents: read
+    pages: write
+    id-token: write
 
 jobs:
-    build-and-deploy:
+    build:
         runs-on: ubuntu-latest
         steps:
-            - name: Checkout
+            - name: Checkout your repository using git
               uses: actions/checkout@v3
-
-            - name: Setup Node.js
-              uses: actions/setup-node@v3
+            - name: Install, build, and upload your site
+              uses: withastro/action@v0 # This is the official Astro action
               with:
-                  node-version: 16
-
-            - name: Install Dependencies
-              run: npm ci
-
-            - name: Build
-              run: npm run build
+                  path: . # Root location of your Astro project
+                  node-version: 18 # Node.js version
+                  package-manager: npm # Optional package manager
               env:
                   PUBLIC_MAPBOX_TOKEN: ${{ secrets.MAPBOX_TOKEN }}
 
+    deploy:
+        needs: build
+        runs-on: ubuntu-latest
+        environment:
+            name: github-pages
+            url: ${{ steps.deployment.outputs.page_url }}
+        steps:
             - name: Deploy to GitHub Pages
-              uses: JamesIves/github-pages-deploy-action@v4
-              with:
-                  folder: dist
-                  branch: gh-pages
+              id: deployment
+              uses: actions/deploy-pages@v1
