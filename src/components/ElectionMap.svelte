@@ -11,11 +11,26 @@
 	let map;
 	let selectedView = "leading";
 	let showAbout = false;
-	let partyStats = {};
-	let allDistrictData = [];
-	let dataLoaded = false;
 	let hoverInfo = null;
 	let isMobile = false;
+
+	// Set fallback values directly
+	let partyStats = {
+		// Major parties: Results 16.4%, 20.8%, 28.5%
+		// Breakpoints chosen to place these results in distinct middle ranges
+		SPD: { breakpoints: [0, 15, 25, 35, 45] },
+		UNION: { breakpoints: [0, 15, 25, 35, 45] },
+		AfD: { breakpoints: [0, 15, 25, 35, 45] },
+
+		// Greens: Result 11.6%
+		GRÜNE: { breakpoints: [0, 10, 20, 30, 40] },
+
+		// Smaller parties: Results 8.8%, 5.0%, 4.3%
+		FDP: { breakpoints: [0, 5, 10, 15, 20] },
+		LINKE: { breakpoints: [0, 5, 10, 15, 20] },
+		BSW: { breakpoints: [0, 5, 10, 15, 20] },
+		OTHER: { breakpoints: [0, 5, 10, 15, 20] },
+	};
 
 	// Party colors (standard German party colours)
 	const partyColors = {
@@ -51,7 +66,7 @@
 			maxZoom: 10,
 		});
 
-		// Add navigation controls (moved to bottom-right for mobile compatibility)
+		// Add navigation controls
 		map.addControl(new mapboxgl.NavigationControl(), "bottom-right");
 
 		// Add geocoder for searching locations
@@ -80,9 +95,6 @@
 				attribution: "2025 Bundestag Election Data",
 			});
 
-			// Fetch data to calculate statistics
-			await fetchAllDistrictData();
-
 			// Add layer for leading party view (default)
 			addLeadingPartyLayer(labelLayerId);
 
@@ -94,143 +106,6 @@
 			window.removeEventListener("resize", checkMobile);
 		};
 	});
-
-	// Fetch data to calculate statistics
-	async function fetchAllDistrictData() {
-		try {
-			// In a real application, you'd fetch all district data from an API
-			// For this example, we'll pull data from the map source as it loads
-
-			// Create a listener for source data loading
-			map.on("sourcedata", (e) => {
-				if (
-					e.sourceId === "election-districts" &&
-					e.isSourceLoaded &&
-					!dataLoaded
-				) {
-					// Attempt to extract features
-					const features = map.querySourceFeatures(
-						"election-districts",
-						{
-							sourceLayer: "election_districts",
-						}
-					);
-
-					if (features.length > 0) {
-						// Process features to collect data for all districts
-						features.forEach((feature) => {
-							if (feature.properties) {
-								allDistrictData.push({
-									SPD: feature.properties.SPD,
-									UNION: feature.properties.UNION,
-									GRÜNE: feature.properties.GRÜNE,
-									FDP: feature.properties.FDP,
-									AfD: feature.properties.AfD,
-									LINKE: feature.properties.LINKE,
-									BSW: feature.properties.BSW,
-									OTHER: feature.properties.OTHER,
-								});
-							}
-						});
-
-						// Calculate party statistics once we have data
-						calculatePartyStatistics();
-						dataLoaded = true;
-					}
-				}
-			});
-
-			// If we can't get real data, use fallback values
-			setTimeout(() => {
-				if (!dataLoaded) {
-					console.log("Using fallback statistics");
-					partyStats = {
-						// Major parties: Results 16.4%, 20.8%, 28.5%
-						// Breakpoints chosen to place these results in distinct middle ranges
-						SPD: { breakpoints: [0, 15, 23, 30, 40] }, // 16.4% is in 15-23 range
-						UNION: { breakpoints: [0, 15, 23, 30, 40] }, // 28.5% is in 23-30 range
-						AfD: { breakpoints: [0, 15, 23, 30, 40] }, // 20.8% is in 15-23 range
-
-						// Greens: Result 11.6%
-						// Original breakpoints seem reasonable
-						GRÜNE: { breakpoints: [0, 10, 20, 30, 40] }, // 11.6% is in 10-20 range
-
-						// Smaller parties: Results 8.8%, 5.0%, 4.3%
-						// Original breakpoints seem reasonable
-						FDP: { breakpoints: [0, 5, 10, 15, 20] }, // 4.3% is in 0-5 range
-						LINKE: { breakpoints: [0, 5, 10, 15, 20] }, // 8.8% is in 5-10 range
-						BSW: { breakpoints: [0, 5, 10, 15, 20] }, // 5.0% is right on the edge, effectively in 5-10 range
-						OTHER: { breakpoints: [0, 5, 10, 15, 20] }, // For parties generally polling low
-					};
-					dataLoaded = true;
-
-					// If we switched to a party view before data loaded, update it now
-					if (selectedView !== "leading") {
-						const layers = map.getStyle().layers;
-						const labelLayerId = layers.find(
-							(layer) =>
-								layer.type === "symbol" &&
-								layer.layout["text-field"]
-						).id;
-						addPartyVoteShareLayer(selectedView, labelLayerId);
-					}
-				}
-			}, 3000);
-		} catch (error) {
-			console.error("Error fetching district data:", error);
-		}
-	}
-
-	// Calculate statistics for each party
-	function calculatePartyStatistics() {
-		if (allDistrictData.length === 0) return;
-
-		const parties = [
-			"SPD",
-			"UNION",
-			"GRÜNE",
-			"FDP",
-			"AfD",
-			"LINKE",
-			"BSW",
-			"OTHER",
-		];
-
-		parties.forEach((party) => {
-			const values = allDistrictData
-				.map((d) => d[party])
-				.filter((v) => v !== undefined);
-			if (values.length === 0) return;
-
-			values.sort((a, b) => a - b);
-
-			let breakpoints;
-
-			// For most major parties
-			if (party === "SPD" || party === "UNION" || party === "AfD") {
-				breakpoints = [0, 15, 25, 35, 45];
-			}
-			// For Greens
-			else if (party === "GRÜNE") {
-				breakpoints = [0, 10, 20, 30, 40];
-			}
-			// For smaller parties
-			else {
-				breakpoints = [0, 5, 10, 15, 20];
-			}
-
-			partyStats[party] = { breakpoints };
-		});
-
-		// If we have data, update the map if needed
-		if (selectedView !== "leading") {
-			const layers = map.getStyle().layers;
-			const labelLayerId = layers.find(
-				(layer) => layer.type === "symbol" && layer.layout["text-field"]
-			).id;
-			addPartyVoteShareLayer(selectedView, labelLayerId);
-		}
-	}
 
 	// Set up map event listeners
 	function setupEventListeners() {
@@ -390,13 +265,12 @@
 	function generateColorVariant(baseColor, saturation, lightness) {
 		// For black (CDU/CSU), we need to use gray tones
 		if (baseColor === "#000000") {
-			return lightness >= 75
-				? "#EEEEEE"
-				: lightness >= 50
-					? "#AAAAAA"
-					: lightness >= 25
-						? "#555555"
-						: "#222222";
+			// Create a smoother gradient from light to dark
+			if (lightness >= 90) return "#F5F5F5"; // Very light gray
+			if (lightness >= 70) return "#D3D3D3"; // Light gray
+			if (lightness >= 50) return "#A9A9A9"; // Medium gray
+			if (lightness >= 30) return "#696969"; // Dark gray
+			return "#2D2D2D"; // Very dark gray (not pure black)
 		}
 
 		// Convert hex to RGB
@@ -474,8 +348,6 @@
 
 	// Add party vote share layer with quantile-based party colors
 	function addPartyVoteShareLayer(party, beforeLayerId) {
-		if (!dataLoaded) return;
-
 		if (map.getLayer("districts-fill")) map.removeLayer("districts-fill");
 		if (map.getLayer("districts-line")) map.removeLayer("districts-line");
 
@@ -485,11 +357,11 @@
 		if (!stats) return;
 
 		// Generate color variants with decreasing lightness/increasing saturation
-		const color1 = generateColorVariant(baseColor, 15, 90); // Very light version of the color (not white)
+		const color1 = generateColorVariant(baseColor, 15, 90);
 		const color2 = generateColorVariant(baseColor, 40, 75);
 		const color3 = generateColorVariant(baseColor, 70, 50);
 		const color4 = generateColorVariant(baseColor, 90, 35);
-		const color5 = generateColorVariant(baseColor, 100, 20); // Most saturated/darkest version
+		const color5 = generateColorVariant(baseColor, 100, 20);
 
 		map.addLayer(
 			{
@@ -501,7 +373,7 @@
 					"fill-color": [
 						"step",
 						["get", party],
-						color1, // Very light party color (not white)
+						color1,
 						stats.breakpoints[1],
 						color2,
 						stats.breakpoints[2],
@@ -666,7 +538,7 @@
 </div>
 
 <!-- Legend for selected view - Positioned at bottom for mobile, top-right for desktop -->
-{#if selectedView !== "leading" && dataLoaded}
+{#if selectedView !== "leading"}
 	<div
 		class="absolute bottom-16 left-0 right-0 mx-auto md:bottom-auto md:top-4 md:right-4 md:left-auto z-10 bg-white rounded-md shadow-md p-3 max-w-[260px]"
 	>
@@ -728,14 +600,22 @@
 			</div>
 		</div>
 
-		<!-- Percentage labels -->
+		<!-- Percentage labels - fixed alignment -->
 		{#if partyStats[selectedView]}
-			<div class="flex justify-between text-xs w-full">
-				<span>0</span>
-				<span>{partyStats[selectedView].breakpoints[1]}%</span>
-				<span>{partyStats[selectedView].breakpoints[2]}%</span>
-				<span>{partyStats[selectedView].breakpoints[3]}%</span>
-				<span>{partyStats[selectedView].breakpoints[4]}%+</span>
+			<div class="flex text-xs w-full">
+				<div class="w-10 text-left">0%</div>
+				<div class="w-10 text-center">
+					{partyStats[selectedView].breakpoints[1]}%
+				</div>
+				<div class="w-10 text-center">
+					{partyStats[selectedView].breakpoints[2]}%
+				</div>
+				<div class="w-10 text-center">
+					{partyStats[selectedView].breakpoints[3]}%
+				</div>
+				<div class="w-10 text-right">
+					{partyStats[selectedView].breakpoints[4]}%+
+				</div>
 			</div>
 		{/if}
 	</div>
