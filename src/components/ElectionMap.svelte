@@ -145,14 +145,22 @@
 				if (!dataLoaded) {
 					console.log("Using fallback statistics");
 					partyStats = {
-						SPD: { breakpoints: [0, 15, 25, 35, 45] },
-						UNION: { breakpoints: [0, 15, 25, 35, 45] },
-						GRÜNE: { breakpoints: [0, 10, 20, 30, 40] },
-						FDP: { breakpoints: [0, 5, 10, 15, 20] },
-						AfD: { breakpoints: [0, 15, 25, 35, 45] },
-						LINKE: { breakpoints: [0, 5, 10, 15, 20] },
-						BSW: { breakpoints: [0, 5, 10, 15, 20] },
-						OTHER: { breakpoints: [0, 5, 10, 15, 20] },
+						// Major parties: Results 16.4%, 20.8%, 28.5%
+						// Breakpoints chosen to place these results in distinct middle ranges
+						SPD: { breakpoints: [0, 15, 23, 30, 40] }, // 16.4% is in 15-23 range
+						UNION: { breakpoints: [0, 15, 23, 30, 40] }, // 28.5% is in 23-30 range
+						AfD: { breakpoints: [0, 15, 23, 30, 40] }, // 20.8% is in 15-23 range
+
+						// Greens: Result 11.6%
+						// Original breakpoints seem reasonable
+						GRÜNE: { breakpoints: [0, 10, 20, 30, 40] }, // 11.6% is in 10-20 range
+
+						// Smaller parties: Results 8.8%, 5.0%, 4.3%
+						// Original breakpoints seem reasonable
+						FDP: { breakpoints: [0, 5, 10, 15, 20] }, // 4.3% is in 0-5 range
+						LINKE: { breakpoints: [0, 5, 10, 15, 20] }, // 8.8% is in 5-10 range
+						BSW: { breakpoints: [0, 5, 10, 15, 20] }, // 5.0% is right on the edge, effectively in 5-10 range
+						OTHER: { breakpoints: [0, 5, 10, 15, 20] }, // For parties generally polling low
 					};
 					dataLoaded = true;
 
